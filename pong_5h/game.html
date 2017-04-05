@@ -1,0 +1,285 @@
+
+<html>
+
+Hi world
+<b>this is bold</b>
+<i>this is slanted</i>
+normal text
+
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<script type="text/javascript">
+// SOURCE:
+// https://www.udemy.com/code-your-first-game/learn/v4/t/lecture/3603404?start=0
+
+// Global variables
+var canvas;
+var canvasContext;
+var framesPerSecond = 30;
+
+var ballX = 100;
+var ballY = 200;
+var ballState = 1;
+var ballSpeedX = 10;
+var ballSpeedY = 5;
+const BALL_RADIUS = 20;
+const BALL_COLLFACTOR = 1.2
+const BALL_COLLDECAY = 1.15
+
+var paddle1Y = 100;
+var paddle2Y = 50;
+var paddleSpeed2Y = 4;
+const PADDLE_THICKNESS = 15;
+const PADDLE_HEIGHT = 100;
+
+var player1Score = 0;
+var player2Score = 0;
+const WINNING_SCORE = 3;
+var showingWinScreen = false;
+
+// evt is event relation
+// would normaly use library for this
+function calculateMousePos(evt){
+	var rect = canvas.getBoundingClientRect();
+	var root = document.documentElement;
+	var mouseX = evt.clientX - rect.left - root.scrollLeft;
+	var mouseY = evt.clientY - rect.top - root.scrollTop;
+
+	return {
+		x:mouseX,
+		y:mouseY
+	};
+}
+
+// handle mouse click (func for evt listener)
+function handleMouseClick(evt){
+	if(showingWinScreen){
+		player1Score = 0;
+		player2Score = 0;
+		showingWinScreen = false;
+		ballReset()
+	}
+
+
+}
+
+
+// windows onload only execute when the page has finished loading
+window.onload = function() {
+	console.log("hello world!");
+	canvas = document.getElementById('gameCanvas');
+	canvasContext = canvas.getContext('2d');
+	
+	ballReset()
+	drawEverything();
+
+	setInterval(
+		// Inline function
+		function(){
+		moveEverything();
+		drawEverything();
+		}
+		,1000/framesPerSecond);
+
+	// external function to handle the event
+	canvas.addEventListener('mousedown',handleMouseClick);
+
+	canvas.addEventListener('mousemove',
+			// inline function to handle the event
+			function(evt){
+				var mousePos = calculateMousePos(evt);
+				paddle1Y = mousePos.y - (PADDLE_HEIGHT/2);
+			});
+}
+
+
+function ballReset(){
+	if(player1Score >= WINNING_SCORE ||
+	   player2Score >= WINNING_SCORE){
+		 showingWinScreen = true;
+	   }	
+
+	ballX = canvas.width/2;
+	ballY = canvas.height/2;
+	ballSpeedY = 5*Math.random();
+}
+
+function moveEverything(){
+
+	if(showingWinScreen){
+		return;
+	}
+
+	// reduce bounce
+	ballState = (Math.exp((1-ballState)/BALL_COLLDECAY))
+
+	// update position
+	ballX = ballX + ballSpeedX;
+	ballY = ballY + ballSpeedY;
+
+	// update ai move
+	computerMovement()
+
+	// bottom
+	if(ballY > canvas.height-BALL_RADIUS){
+		ballY = canvas.height-BALL_RADIUS;
+		ballSpeedY = -1*ballSpeedY;
+		ballState = 1/BALL_COLLFACTOR;
+	}
+	// top
+	else if (ballY < BALL_RADIUS){
+		ballY = BALL_RADIUS
+		ballSpeedY = -1*ballSpeedY
+		ballState = 1/BALL_COLLFACTOR
+	}
+
+	// within left player paddle
+	if( ballX < BALL_RADIUS+PADDLE_THICKNESS/2 &&
+			ballY > paddle1Y-BALL_RADIUS &&
+			ballY < paddle1Y+PADDLE_HEIGHT+BALL_RADIUS){
+		ballX = BALL_RADIUS+PADDLE_THICKNESS/2;
+		ballSpeedX = -1*ballSpeedX;
+		
+		var deltaY = ballY - (paddle1Y+PADDLE_HEIGHT/2);
+		ballSpeedY = deltaY*0.35;
+		ballState = BALL_COLLFACTOR-0.1+0.4*Math.abs(deltaY)/PADDLE_HEIGHT;
+	}
+
+	// within right ai paddle
+	if( ballX > canvas.width-BALL_RADIUS-PADDLE_THICKNESS/2 &&
+				ballY > paddle2Y-BALL_RADIUS &&
+				ballY < paddle2Y+PADDLE_HEIGHT+BALL_RADIUS){
+		ballX = canvas.width-BALL_RADIUS-PADDLE_THICKNESS/2;
+		ballSpeedX = -1*ballSpeedX;
+
+		var deltaY = ballY - (paddle2Y+PADDLE_HEIGHT/2);
+		ballSpeedY = deltaY*0.35;
+		ballState = BALL_COLLFACTOR-0.1+0.4*Math.abs(deltaY)/PADDLE_HEIGHT;
+	}
+
+	// SCORING
+	// right side oob
+	if(ballX > canvas.width+BALL_RADIUS){
+			player1Score++;
+			// outside paddle		
+			ballReset();
+
+		}
+	// left side
+	else if (ballX < -BALL_RADIUS){
+			player2Score++; 
+			// outside paddle
+			ballReset();
+		}
+
+}
+
+function drawNet(){
+	canvasContext.fillStyle = 'gray'	
+
+	for(var i=10;i<canvas.height;i+=40){
+		canvasContext.fillRect(canvas.width/2-1,i,3,20,'white')
+	}
+
+	canvasContext.strokeStyle = 'gray'
+	canvasContext.lineWidth = 3;
+	for(var i=Math.PI/32;i<=2*Math.PI;i+=Math.PI/8){
+		canvasContext.beginPath();
+		canvasContext.arc(canvas.width/2,canvas.height/2,100,i,i+Math.PI/16,false);
+		canvasContext.stroke();
+		canvasContext.closePath();
+
+
+	}
+
+
+}
+
+
+function drawEverything(){
+	//console.log('called drawEverything')
+	
+	// Top left corner is 0,0 and positive x is right
+	// but positive y is down!
+	
+	// background
+	canvasContext.fillStyle = 'black';
+	canvasContext.fillRect(0,0,canvas.width,canvas.height);
+
+	// win screen (breaks)
+	if(showingWinScreen){
+		canvasContext.fillStyle = 'white';
+
+		if(player1Score>= WINNING_SCORE){
+		canvasContext.fillText("Left player won",400,150)
+		}
+		else{
+		canvasContext.fillText("Right player won",400,150)
+		}
+
+
+		canvasContext.fillText("Click to continue",400,500)
+		return;
+	}
+
+	drawNet();
+
+	// draw left player paddle
+	draw_paddle(0,paddle1Y)
+	// draw right opponents paddle
+	draw_paddle(canvas.width-PADDLE_THICKNESS,paddle2Y)
+	 
+
+	// draw ball
+	canvasContext.save();
+	canvasContext.scale(1/ballState, ballState);
+	drawball(ballX*ballState
+		//-Math.sign(ballSpeedX)*BALL_RADIUS/ballState
+		,ballY/ballState,'white');
+	canvasContext.restore();
+
+
+	// Score
+	canvasContext.fillText(player1Score,100,100);
+	canvasContext.fillText(player2Score,canvas.width-100,100);
+
+
+	function draw_paddle(x,y){
+		canvasContext.fillStyle = 'white'
+		canvasContext.fillRect(x,y,PADDLE_THICKNESS,PADDLE_HEIGHT)
+	}
+
+	// draw ball
+	function drawball(x,y,drawColor){	
+		// Begin path is important otherwise it, will remember old circles drawn?
+		canvasContext.beginPath();
+		canvasContext.arc(x,y,BALL_RADIUS,0,2*Math.PI,false);
+		canvasContext.fillStyle = drawColor;
+		canvasContext.fill();
+		canvasContext.closePath();
+	}
+	
+
+}
+
+function computerMovement(){
+	// ai paddle direction
+	paddle2Y = paddle2Y+ai()*paddleSpeed2Y
+
+	function ai(){
+	paddleYCenter = paddle2Y+PADDLE_HEIGHT/2
+
+	if(Math.abs(ballY-paddleYCenter)<paddleSpeed2Y){
+		return (ballY-paddleYCenter)/paddleSpeed2Y
+	} else
+	return (Math.sign(ballY-paddleYCenter)*1)
+
+	}
+
+}
+
+
+</script>
+
+
+</html>
