@@ -7,35 +7,76 @@ Hi world
 normal text
 
 <canvas id="gameCanvas" width="800" height="600"></canvas>
+<audio id="soundBooiing" src="audio/booiing.wav"> </audio> 
 
+<script type="text/javascript" src="external_js_test.js"></script>
 <script type="text/javascript">
+window.onload = init;
 // SOURCE:
 // https://www.udemy.com/code-your-first-game/learn/v4/t/lecture/3603404?start=0
 
-// Global variables
+// -- Global variables --
+// Canvas
 var canvas;
 var canvasContext;
-var framesPerSecond = 30;
-
+var framesPerSecond = 60;
+// ball
 var ballX = 100;
 var ballY = 200;
 var ballState = 1;
-var ballSpeedX = 10;
-var ballSpeedY = 5;
-const BALL_RADIUS = 20;
-const BALL_COLLFACTOR = 1.2
-const BALL_COLLDECAY = 1.15
-
-var paddle1Y = 100;
-var paddle2Y = 50;
-var paddleSpeed2Y = 4;
+var ballSpeedX = 10*30/framesPerSecond;
+var ballSpeedY = 5*30/framesPerSecond;
+const BALL_RADIUS = 15;
+const BALL_COLLFACTOR = 1.4;
+const BALL_COLLDECAY = 1.1;
+// paddles
+var paddle1Y = 350;
+var paddle2Y = 350;
+var paddleSpeed2Y = 5*30/framesPerSecond;
 const PADDLE_THICKNESS = 15;
 const PADDLE_HEIGHT = 100;
-
+// players
 var player1Score = 0;
 var player2Score = 0;
 const WINNING_SCORE = 3;
 var showingWinScreen = false;
+
+// windows onload only execute when the page has finished loading
+function init() {
+	// Get canvas context
+	console.log("hello world!");
+	canvas = document.getElementById('gameCanvas');
+	canvasContext = canvas.getContext('2d');
+	
+	// Draw initial state
+	ballReset()
+	drawEverything();
+
+	// set update function
+	setInterval(
+		// Inline function
+		function(){
+		moveEverything();
+		drawEverything();
+		}
+		,1000/framesPerSecond);
+
+	// mouse click - example of external function to handle the event
+	canvas.addEventListener('mousedown',handleMouseClick);
+
+	// mouse move - example of inline function to handle the event
+	canvas.addEventListener('mousemove',
+			function(evt){
+				var mousePos = calculateMousePos(evt);
+				paddle1Y = mousePos.y - (PADDLE_HEIGHT/2);
+			});
+
+	// initialize sounds
+	//https://developer.apple.com/library/content/documentation/AudioVideo/Conceptual/Using_HTML5_Audio_Video/PlayingandSynthesizingSounds/PlayingandSynthesizingSounds.html
+	//https://www.html5rocks.com/en/tutorials/webaudio/intro/
+
+}
+
 
 // evt is event relation
 // would normaly use library for this
@@ -63,35 +104,30 @@ function handleMouseClick(evt){
 
 }
 
-
-// windows onload only execute when the page has finished loading
-window.onload = function() {
-	console.log("hello world!");
-	canvas = document.getElementById('gameCanvas');
-	canvasContext = canvas.getContext('2d');
+function playBooiing(){
+	// hack that creates the sound each time
+	// 1) the same sound can not be played multiple times
+	// 2) a proper buffering requires a server setup
+	// 3) create element is used instead of New Audio(); because it is in practice is more stable
+	var audio = document.createElement('audio');
 	
-	ballReset()
-	drawEverything();
+	if(Math.random()<0.042){
+	audio.src = 'audio/booiing.wav';
+	ballState+= ballState-1;
+	} else {
+		audio.src = 'audio/boing'+getRandomInt(1,5)+'.wav';
+	}
+	
+	audio.play();
+	
 
-	setInterval(
-		// Inline function
-		function(){
-		moveEverything();
-		drawEverything();
-		}
-		,1000/framesPerSecond);
+	function getRandomInt(min, max) {
+    	return Math.floor(Math.random() * (max - min + 1)) + min
+	}
 
-	// external function to handle the event
-	canvas.addEventListener('mousedown',handleMouseClick);
 
-	canvas.addEventListener('mousemove',
-			// inline function to handle the event
-			function(evt){
-				var mousePos = calculateMousePos(evt);
-				paddle1Y = mousePos.y - (PADDLE_HEIGHT/2);
-			});
+
 }
-
 
 function ballReset(){
 	if(player1Score >= WINNING_SCORE ||
@@ -102,6 +138,7 @@ function ballReset(){
 	ballX = canvas.width/2;
 	ballY = canvas.height/2;
 	ballSpeedY = 5*Math.random();
+	ballSpeedX = -ballSpeedX
 }
 
 function moveEverything(){
@@ -124,13 +161,17 @@ function moveEverything(){
 	if(ballY > canvas.height-BALL_RADIUS){
 		ballY = canvas.height-BALL_RADIUS;
 		ballSpeedY = -1*ballSpeedY;
-		ballState = 1/BALL_COLLFACTOR;
+		ballState = 1.5/BALL_COLLFACTOR;
+
+		playBooiing();
 	}
 	// top
 	else if (ballY < BALL_RADIUS){
 		ballY = BALL_RADIUS
 		ballSpeedY = -1*ballSpeedY
-		ballState = 1/BALL_COLLFACTOR
+		ballState = 1.5/BALL_COLLFACTOR
+
+		playBooiing();
 	}
 
 	// within left player paddle
@@ -142,7 +183,10 @@ function moveEverything(){
 		
 		var deltaY = ballY - (paddle1Y+PADDLE_HEIGHT/2);
 		ballSpeedY = deltaY*0.35;
-		ballState = BALL_COLLFACTOR-0.1+0.4*Math.abs(deltaY)/PADDLE_HEIGHT;
+		ballState = BALL_COLLFACTOR-0.1+0.3*Math.abs(deltaY)/PADDLE_HEIGHT;
+
+		playBooiing();
+
 	}
 
 	// within right ai paddle
@@ -154,7 +198,10 @@ function moveEverything(){
 
 		var deltaY = ballY - (paddle2Y+PADDLE_HEIGHT/2);
 		ballSpeedY = deltaY*0.35;
-		ballState = BALL_COLLFACTOR-0.1+0.4*Math.abs(deltaY)/PADDLE_HEIGHT;
+		ballState = BALL_COLLFACTOR-0.1+0.3*Math.abs(deltaY)/PADDLE_HEIGHT;
+
+		playBooiing();
+
 	}
 
 	// SCORING
@@ -206,19 +253,23 @@ function drawEverything(){
 	canvasContext.fillStyle = 'black';
 	canvasContext.fillRect(0,0,canvas.width,canvas.height);
 
+	// do a global font setting
+	canvasContext.font="30px New Courier";
+
+
 	// win screen (breaks)
 	if(showingWinScreen){
 		canvasContext.fillStyle = 'white';
 
 		if(player1Score>= WINNING_SCORE){
-		canvasContext.fillText("Left player won",400,150)
+		canvasContext.fillText("Left player won",300,150)
 		}
 		else{
-		canvasContext.fillText("Right player won",400,150)
+		canvasContext.fillText("Right player won",300,150)
 		}
 
 
-		canvasContext.fillText("Click to continue",400,500)
+		canvasContext.fillText("Click to continue",300,500)
 		return;
 	}
 
