@@ -1,11 +1,9 @@
 
 <html>
 
-Hi world
-<b>this is bold</b>
-<i>this is slanted</i>
-normal text
-
+<h1>Pong</h1>
+<p> first to 3 points win <br>
+ mouse controls left paddle </p>
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 <audio id="soundBooiing" src="audio/booiing.wav"> </audio> 
 
@@ -19,27 +17,33 @@ window.onload = init;
 // Canvas
 var canvas;
 var canvasContext;
-var framesPerSecond = 60;
+var framesPerSecond = 200;
 // ball
 var ballX = 100;
 var ballY = 200;
 var ballState = 1;
-var ballSpeedX = 10*30/framesPerSecond;
+var ballSpeedX = 15*30/framesPerSecond;
 var ballSpeedY = 5*30/framesPerSecond;
+var animateBall = true;
 const BALL_RADIUS = 15;
-const BALL_COLLFACTOR = 1.4;
-const BALL_COLLDECAY = 1.1;
+const BALL_COLLFACTOR = 1.4;//1.4;
+const BALL_COLLDECAY = 0.2//1.1;
 // paddles
 var paddle1Y = 350;
 var paddle2Y = 350;
-var paddleSpeed2Y = 5*30/framesPerSecond;
-const PADDLE_THICKNESS = 15;
+const PADDLE_THICKNESS = 10;
 const PADDLE_HEIGHT = 100;
 // players
 var player1Score = 0;
 var player2Score = 0;
 const WINNING_SCORE = 3;
 var showingWinScreen = false;
+// ai 
+var aiDifficulty = 0.5; 	// [0...1] fraction of distance from ai, where ai will use perfect infomation
+var aiSpeed = 5;
+var aiDebug = true; 
+var aiTarget = ballX;
+var paddleSpeed2Y = 7*30/framesPerSecond;
 
 // windows onload only execute when the page has finished loading
 function init() {
@@ -113,7 +117,7 @@ function playBooiing(){
 	
 	if(Math.random()<0.042){
 	audio.src = 'audio/booiing.wav';
-	ballState+= ballState-1;
+	ballState+= 0.2*(ballState-1);
 	} else {
 		audio.src = 'audio/boing'+getRandomInt(1,5)+'.wav';
 	}
@@ -148,7 +152,9 @@ function moveEverything(){
 	}
 
 	// reduce bounce
-	ballState = (Math.exp((1-ballState)/BALL_COLLDECAY))
+//	ballState = (Math.exp((1-ballState)*BALL_COLLDECAY))
+	ballState += (1-ballState)*BALL_COLLDECAY
+
 
 	// update position
 	ballX = ballX + ballSpeedX;
@@ -161,7 +167,7 @@ function moveEverything(){
 	if(ballY > canvas.height-BALL_RADIUS){
 		ballY = canvas.height-BALL_RADIUS;
 		ballSpeedY = -1*ballSpeedY;
-		ballState = 1.5/BALL_COLLFACTOR;
+		ballState = 1/BALL_COLLFACTOR;
 
 		playBooiing();
 	}
@@ -169,7 +175,7 @@ function moveEverything(){
 	else if (ballY < BALL_RADIUS){
 		ballY = BALL_RADIUS
 		ballSpeedY = -1*ballSpeedY
-		ballState = 1.5/BALL_COLLFACTOR
+		ballState = 1/BALL_COLLFACTOR
 
 		playBooiing();
 	}
@@ -182,7 +188,7 @@ function moveEverything(){
 		ballSpeedX = -1*ballSpeedX;
 		
 		var deltaY = ballY - (paddle1Y+PADDLE_HEIGHT/2);
-		ballSpeedY = deltaY*0.35;
+		ballSpeedY = deltaY*0.35*30/framesPerSecond;
 		ballState = BALL_COLLFACTOR-0.1+0.3*Math.abs(deltaY)/PADDLE_HEIGHT;
 
 		playBooiing();
@@ -197,7 +203,7 @@ function moveEverything(){
 		ballSpeedX = -1*ballSpeedX;
 
 		var deltaY = ballY - (paddle2Y+PADDLE_HEIGHT/2);
-		ballSpeedY = deltaY*0.35;
+		ballSpeedY = deltaY*0.35*30/framesPerSecond;
 		ballState = BALL_COLLFACTOR-0.1+0.3*Math.abs(deltaY)/PADDLE_HEIGHT;
 
 		playBooiing();
@@ -283,10 +289,11 @@ function drawEverything(){
 
 	// draw ball
 	canvasContext.save();
-	canvasContext.scale(1/ballState, ballState);
-	drawball(ballX*ballState
-		//-Math.sign(ballSpeedX)*BALL_RADIUS/ballState
-		,ballY/ballState,'white');
+	if(animateBall){
+		canvasContext.scale(1/ballState, ballState);
+		drawball(ballX*ballState,ballY/ballState,'white');
+	} else
+		drawball(ballX,ballY,'white');
 	canvasContext.restore();
 
 
@@ -294,6 +301,12 @@ function drawEverything(){
 	canvasContext.fillText(player1Score,100,100);
 	canvasContext.fillText(player2Score,canvas.width-100,100);
 
+
+	// aiDebug 
+	if(aiDebug){
+		canvasContext.fillStyle = 'red'
+		canvasContext.fillRect(canvas.width-10,aiTarget-5,10,10);
+	}
 
 	function draw_paddle(x,y){
 		canvasContext.fillStyle = 'white'
@@ -313,19 +326,48 @@ function drawEverything(){
 
 }
 
+
+// AI function 
 function computerMovement(){
 	// ai paddle direction
 	paddle2Y = paddle2Y+ai()*paddleSpeed2Y
 
 	function ai(){
+		var target_pos = calc_position(aiDifficulty);
+		// temp debug
+		aiTarget = target_pos;
+		return direction_to_position(target_pos);
+	}
+
+	function direction_to_position(target_pos){
 	paddleYCenter = paddle2Y+PADDLE_HEIGHT/2
 
-	if(Math.abs(ballY-paddleYCenter)<paddleSpeed2Y){
-		return (ballY-paddleYCenter)/paddleSpeed2Y
+	if(Math.abs(target_pos-paddleYCenter)<paddleSpeed2Y){
+		return (target_pos-paddleYCenter)/paddleSpeed2Y
 	} else
-	return (Math.sign(ballY-paddleYCenter)*1)
+	return (Math.sign(target_pos-paddleYCenter)*1)
 
 	}
+
+	function calc_position(aiDifficulty){
+		// aiDifficulty determines when the computer will start calculating the correct end position
+		if(ballX > (1-aiDifficulty) * canvas.width & ballSpeedX>0){
+			var n_step = (canvas.width-ballX)/ballSpeedX // add paddle thickness
+
+			var n_reverse = Math.abs(ballSpeedY*n_step+ballY) / canvas.height;
+			// n equal
+			if (n_reverse % 2 <1){
+				return (ballSpeedY*n_step+ballY) % canvas.height;
+			} else{
+			// n unequal
+				return canvas.height - ((ballSpeedY*n_step+ballY) % canvas.height);
+			}
+		} else{
+			return ballY
+		}
+
+	}
+
 
 }
 
