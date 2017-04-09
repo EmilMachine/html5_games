@@ -17,16 +17,18 @@ window.onload = init;
 // Canvas
 var canvas;
 var canvasContext;
-var framesPerSecond = 200;
+var framesPerSecond = 60;
 // ball
 var ballX = 100;
 var ballY = 200;
 var ballState = 1;
 var ballSpeedX = 15*30/framesPerSecond;
 var ballSpeedY = 5*30/framesPerSecond;
-var animateBall = true;
+
+var animateBall = false;
+
 const BALL_RADIUS = 15;
-const BALL_COLLFACTOR = 1.4;//1.4;
+const BALL_COLLFACTOR = 1.6;//1.4;
 const BALL_COLLDECAY = 0.2//1.1;
 // paddles
 var paddle1Y = 350;
@@ -39,11 +41,10 @@ var player2Score = 0;
 const WINNING_SCORE = 3;
 var showingWinScreen = false;
 // ai 
-var aiDifficulty = 0.5; 	// [0...1] fraction of distance from ai, where ai will use perfect infomation
-var aiSpeed = 5;
+var aiDifficulty = 1; 	// [0...1] fraction of distance from ai, where ai will use perfect infomation
 var aiDebug = true; 
 var aiTarget = ballX;
-var paddleSpeed2Y = 7*30/framesPerSecond;
+var paddleSpeed2Y = 8*30/framesPerSecond;
 
 // windows onload only execute when the page has finished loading
 function init() {
@@ -141,7 +142,7 @@ function ballReset(){
 
 	ballX = canvas.width/2;
 	ballY = canvas.height/2;
-	ballSpeedY = 5*Math.random();
+	ballSpeedY = 5*Math.random()*30/framesPerSecond;
 	ballSpeedX = -ballSpeedX
 }
 
@@ -354,18 +355,30 @@ function computerMovement(){
 		if(ballX > (1-aiDifficulty) * canvas.width & ballSpeedX>0){
 			var n_step = (canvas.width-ballX)/ballSpeedX // add paddle thickness
 
-			var n_reverse = Math.abs(ballSpeedY*n_step+ballY) / canvas.height;
+			var n_reverse = (ballSpeedY*n_step+ballY) / canvas.height;
+			if(n_reverse <0){
+				n_reverse = 1-1*n_reverse;
+			}
+
 			// n equal
 			if (n_reverse % 2 <1){
-				return (ballSpeedY*n_step+ballY) % canvas.height;
+				return modulus_positive(ballSpeedY*n_step+ballY+10*canvas.height,canvas.height);
 			} else{
 			// n unequal
-				return canvas.height - ((ballSpeedY*n_step+ballY) % canvas.height);
+				return canvas.height - modulus_positive(ballSpeedY*n_step+ballY+10*canvas.height, canvas.height);
 			}
 		} else{
 			return ballY
 		}
 
+	}
+
+	function modulus_positive(x,y){
+		var c = x % y;
+		if(c<0){
+			return c+y;
+		} 
+		return c;
 	}
 
 
